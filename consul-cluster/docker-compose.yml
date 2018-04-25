@@ -1,0 +1,30 @@
+version: '3'
+
+services:
+  consul-server:
+    build: consul
+    image: hub.docker.waypal.cn/waypal-consul:1.0
+    restart: always
+    hostname: consul-server-dev-172.17.101.173
+    # Default port 8500
+    command: -ui-dir /ui -advertise 172.17.101.173
+    ports:
+      - 172.17.101.173:8300:8300
+      - 172.17.101.173:8301:8301
+      - 172.17.101.173:8302:8302
+      - 172.17.101.173:8301:8301/udp
+      - 172.17.101.173:8302:8302/udp
+      - 172.17.101.173:8400:8400
+      - 172.17.101.173:8500:8500
+      - 172.17.101.173:8600:53/udp
+    volumes:
+      - /home/waypal/volume/consul-cluster/consul/data:/data
+    environment:
+      - SERVICE_IGNORE=true
+
+networks:
+  default:
+    external:
+      name: dev-net
+
+

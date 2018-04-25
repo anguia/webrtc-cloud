@@ -1,0 +1,118 @@
+version: '3'
+
+services:
+  # Stun Server, service port: 3478/udp and 3478/tcp
+  coturn:
+    build: coturn
+    image: hub.docker.waypal.cn/waypal-coturn:1.0
+    restart: always
+    hostname: coturn-pro-172.17.101.167
+    network_mode: host
+    ports:
+      - 172.17.101.167:3478:3478
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    environment:
+      - SERVICE_NAME=coturn-pro
+      - SERVICE_TAGS=private_ip:172.17.101.167,public_ip:47.93.216.54,city:Hangzhou,region:Zhejiang,region_code:33,country:CN,country_name:China,continent_code:AS,postal:null,latitude:30.2936,longitude:120.1614,timezone:Asia/Shanghai,utc_offset:+0800,country_calling_code:+86,currency:CNY,languages:zh-CN,yue,wuu,dta,ug,za,asn:AS37963,
+      - SERVICE_REGION=pro
+
+  # KMS Server
+  kms:
+    build: kms
+    image: hub.docker.waypal.cn/waypal-kms:1.0
+    restart: always
+    hostname: kms-pro-172.17.101.167
+    depends_on:
+      - coturn
+    network_mode: host
+    ports:
+      - 172.17.101.167:8888:8888
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /home/waypal/volume/kms-cluster/kms/kms-media:/tmp
+      - /home/waypal/volume/kms-cluster/kms/etc/kurento/modules/kurento:/etc/kurento/modules/kurento:ro
+      - /home/waypal/volume/kms-cluster/kms/etc/kurento/kurento.conf.json:/etc/kurento/kurento.conf.json:ro
+    environment:
+      - GST_DEBUG=Kurento*:4
+      ##- SERVICE_IGNORE=true
+      - SERVICE_NAME=kms-pro
+      - SERVICE_TAGS=private_ip:172.17.101.167,public_ip:47.93.216.54,city:Hangzhou,region:Zhejiang,region_code:33,country:CN,country_name:China,continent_code:AS,postal:null,latitude:30.2936,longitude:120.1614,timezone:Asia/Shanghai,utc_offset:+0800,country_calling_code:+86,currency:CNY,languages:zh-CN,yue,wuu,dta,ug,za,asn:AS37963,
+      - SERVICE_REGION=pro
+
+  consul-agent:
+    build: consul
+    image: hub.docker.waypal.cn/waypal-consul:1.0
+    restart: always
+    hostname: consul-agent-pro-172.17.101.167
+    # Default port 8500
+    command: -advertise 172.17.101.167
+    network_mode: host
+    ports:
+      - 172.17.101.167:8300:8300
+      - 172.17.101.167:8301:8301
+      - 172.17.101.167:8302:8302
+      - 172.17.101.167:8301:8301/udp
+      - 172.17.101.167:8302:8302/udp
+      - 172.17.101.167:8400:8400
+      - 172.17.101.167:8500:8500
+      - 172.17.101.167:8600:53/udp
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /home/waypal/volume/kms-cluster/consul/data:/data
+    environment:
+      - SERVICE_IGNORE=true
+    
+  registrator:
+    build: registrator
+    image: hub.docker.waypal.cn/waypal-registrator:1.0
+    restart: always
+    hostname: registrator-pro-172.17.101.167
+    depends_on:
+      - "coturn"
+      - "kms"
+      - "consul-agent"
+    command: -ip 172.17.101.167 consul://172.17.101.167:8500
+    network_mode: host
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /var/run/docker.sock:/tmp/docker.sock
+    environment:
+      - SERVICE_IGNORE=true
+
+  #telegraf
+  telegraf:
+    build: telegraf
+    image: hub.docker.waypal.cn/waypal-telegraf:1.0
+    restart: always
+    hostname: telegraf-pro-172.17.101.167
+    network_mode: host
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /home/waypal/volume/kms-cluster/telegraf/etc/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+
+  kmonitor:
+    build: ./kmonitor
+    restart: always
+    hostname: kmonitor-pro-172.17.101.167
+    network_mode: host
+    environment:
+      - KMS_URI=ws://172.17.101.167:8888/kurento
+      - KMS_NAME=waypal-kms-beijing-02
+      - GRAPHITE_IP=172.17.101.170
+      - GRAPHITE_PORT=12003
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.100.0/24

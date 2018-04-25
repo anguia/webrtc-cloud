@@ -1,0 +1,116 @@
+version: '3'
+
+services:
+  # Stun Server, service port: 3478/udp and 3478/tcp
+  coturn:
+    build: coturn
+    image: hub.docker.waypal.cn/waypal-coturn:1.0
+    restart: always
+    hostname: coturn-${SERVICE_NAME}
+    network_mode: host
+    ports:
+      - ${EXPOSE_IP}:3478:3478
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    environment:
+      - SERVICE_NAME=coturn-${REGION}
+      - SERVICE_TAGS=${TAG_INFO}
+      - SERVICE_REGION=${REGION}
+
+  # KMS Server
+  kms:
+    build: kms
+    image: hub.docker.waypal.cn/waypal-kms:1.0
+    restart: always
+    hostname: kms-${SERVICE_NAME}
+    depends_on:
+      - coturn
+    network_mode: host
+    ports:
+      - ${EXPOSE_IP}:8888:8888
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ${KMS_VOLUME}/kms-media:/tmp
+      - ${KMS_VOLUME}/etc/kurento/modules/kurento:/etc/kurento/modules/kurento:ro
+      - ${KMS_VOLUME}/etc/kurento/kurento.conf.json:/etc/kurento/kurento.conf.json:ro
+    environment:
+      - GST_DEBUG=Kurento*:4
+      ${KMS_IGNORE}- SERVICE_IGNORE=true
+      - SERVICE_NAME=kms-${REGION}
+      - SERVICE_TAGS=${TAG_INFO}
+      - SERVICE_REGION=${REGION}
+
+  consul-agent:
+    build: consul
+    image: hub.docker.waypal.cn/waypal-consul:1.0
+    restart: always
+    hostname: consul-agent-${SERVICE_NAME}
+    # Default port 8500
+    command: -advertise ${CONSUL_IP}
+    network_mode: host
+    ports:
+      - ${EXPOSE_IP}:8300:8300
+      - ${EXPOSE_IP}:8301:8301
+      - ${EXPOSE_IP}:8302:8302
+      - ${EXPOSE_IP}:8301:8301/udp
+      - ${EXPOSE_IP}:8302:8302/udp
+      - ${EXPOSE_IP}:8400:8400
+      - ${EXPOSE_IP}:8500:8500
+      - ${EXPOSE_IP}:8600:53/udp
+    volumes:
+      - ${CONSUL_VOLUME}/data:/data
+    environment:
+      - SERVICE_IGNORE=true
+    
+  registrator:
+    build: registrator
+    image: hub.docker.waypal.cn/waypal-registrator:1.0
+    restart: always
+    hostname: registrator-${SERVICE_NAME}
+    depends_on:
+      - "coturn"
+      - "kms"
+      - "consul-agent"
+    command: -ip ${PRIVATE_IP} consul://${PRIVATE_IP}:8500
+    network_mode: host
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /var/run/docker.sock:/tmp/docker.sock
+    environment:
+      - SERVICE_IGNORE=true
+
+  #telegraf
+  telegraf:
+    build: telegraf
+    image: hub.docker.waypal.cn/waypal-telegraf:1.0
+    restart: always
+    hostname: telegraf-${SERVICE_NAME}
+    network_mode: host
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ${TELEGRAF_VOLUME}/etc/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+
+  kmonitor:
+    build: ./kmonitor
+    restart: always
+    hostname: kmonitor-${SERVICE_NAME}
+    network_mode: host
+    environment:
+      - KMS_URI=${KMS_URI}
+      - KMS_NAME=${KMS_NAME}
+      - GRAPHITE_IP=${GRAPHITE_SERVER_IP}
+      - GRAPHITE_PORT=${GRAPHITE_SERVER_PORT}
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.100.0/24

@@ -1,0 +1,2 @@
+# kms configure files
+1. copy config/* to $volume/etc/kurento/modules/kurento/ before create kms docker with volume

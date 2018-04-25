@@ -1,0 +1,377 @@
+version: '3'
+services:
+  ### Monitor Server
+  grafana:
+    ## Image
+    build: grafana
+    #image: index.docker.io/grafana/grafana:4.6.0-beta2
+
+    ## Base
+    privileged: false
+    restart: always
+    container_name: grafana
+    #hostname:
+    #command: 
+
+    ## Network
+    #expose:
+    ports:
+      - 13000:3000   
+    #depends_on:
+    #link:
+
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+      - ${MONITOR_VOLUME}/grafana/var/lib/grafana:/var/lib/grafana
+
+    ## Env
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-worldmap-panel,grafana-piechart-panel
+      - SERVICE_IGNORE=true
+
+  ### Monitor ELK
+  kibana:
+    ## Image
+    build: kibana
+    ##image: library/kibana:5.6
+
+    ## Base
+    privileged: false
+    restart: always
+    container_name: kibana
+    #hostname:
+    #command: 
+
+    ## Network 
+    #network_mode: host  
+    #expose:
+    ports:
+      - 5601:5601  
+    depends_on:
+      - elasticsearch
+      - logstash
+    links:
+      - elasticsearch
+
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+    ## Env
+    environment:
+      - SERVICE_IGNORE=true
+
+  ### Monitor ELK data source
+  elasticsearch:
+    ## Image
+    build: elasticsearch
+    #image: library/elasticsearch:5.6
+
+    ## Base
+    privileged: false
+    restart: always
+    container_name: elasticsearch
+    #hostname:
+    #command: 
+
+    ## Network  
+    #network_mode: host 
+    #expose:
+    ports:
+      - 9200:9200
+    #depends_on:
+    #link:
+    
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+      #- ${MONITOR_VOLUME}/esearch/usr/share/elasticsearch/config:/usr/share/elasticsearch/config
+      - ${MONITOR_VOLUME}/esearch/usr/share/elasticsearch/data:/usr/share/elasticsearch/data
+    ## Env
+    environment:
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - SERVICE_IGNORE=true
+
+  ### Monitor ELK
+  logstash:
+    ## Image
+    build: logstash
+    #image: library/logstash:5.6
+
+    ## Base
+    privileged: false
+    restart: always
+    container_name: logstash
+    #hostname:
+    command: -f /config-dir/
+
+    ## Network  
+    #network_mode: host 
+    #expose:
+    ports:
+      - 5044:5044  
+    depends_on:
+      - elasticsearch
+    links:
+      - elasticsearch
+
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+      - ${MONITOR_VOLUME}/logstash/config:/config-dir
+      - ${MONITOR_VOLUME}/logstash/mid:/mid
+      
+    ## Env
+    environment:
+      - LS_HEAP_SIZE=2048m
+      - SERVICE_IGNORE=true
+
+  ### Monitor ELK test client ---test
+  nginx:
+    ## Image
+    build: nginx
+    ##image: library/nginx:1.13
+
+    ## Base
+    privileged: false
+    restart: always
+    container_name: nginx
+    #hostname:
+    #command: 
+
+    ## Network
+    #network_mode: host 
+    #expose:
+    ports:
+      - 10081:80
+    #depends_on:
+    #link:
+
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+      - ${MONITOR_VOLUME}/nginx/var/log/nginx:/var/log/nginx
+      - ${MONITOR_VOLUME}/nginx/etc/nginx/nginx.conf:/etc/nginx/nginx.conf
+
+    ## Env
+    environment:
+      - SERVICE_IGNORE=true
+ 
+  ### Monitor Client for log
+  filebeat:
+    ## Image
+    build: filebeat
+    ##image: filebeat
+
+    ## Base
+    privileged: false
+    restart: always
+    container_name: filebeat
+    #hostname:
+    #command: 
+
+    ## Network   
+    #network_mode: host  
+    #expose:
+    #ports: 
+    depends_on:
+      - nginx
+    #link:
+
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+      - ${MONITOR_VOLUME}/nginx/var/log/nginx:/var/log/nginx
+
+    ## Env
+    environment:
+      - SERVICE_IGNORE=true
+ 
+  ### Monitor grafana data source
+  graphite:
+    ## Image
+    build: graphite
+    ##image: hopsoft/graphite-statsd:v0.9.15-phusion0.9.18
+
+    ## Base
+    privileged: false
+    restart: always
+    container_name: graphite
+    #hostname:
+    #command: 
+
+    ## Network
+    #network_mode: host 
+    #expose:
+    ports:
+      - 10080:80
+      - 12004:2004
+      - 12003:2003
+      - 12023:2023
+      - 12024:2024
+      - 18125:8125/udp
+      - 18126:8126   
+    #depends_on:
+    #link:
+
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+      - ${MONITOR_VOLUME}/graphite/opt/graphite/storage:/opt/graphite/storage
+      #- ${MONITOR_VOLUME}/graphite/var/log:/var/log
+
+    ## Env
+    environment:
+      - SERVICE_IGNORE=true
+
+  ### Monitor grafana data source
+  influxdb:
+    ## Image
+    build: influxdb
+    ##image: tutum/influxdb:0.13
+
+    ## Base
+    privileged: false
+    restart: always
+    container_name: influxdb
+    #hostname:
+    #command: 
+
+    ## Network
+    #network_mode: host  
+    #expose:
+    ports:
+      - 8083:8083
+      - 8086:8086  
+    #depends_on:
+    #link:
+
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+      - ${MONITOR_VOLUME}/influxdb/var/lib/influxdb:/var/lib/influxdb
+      - ${MONITOR_VOLUME}/influxdb/var/lib/influxdb:/data
+
+    ## Env
+    environment:
+      - ADMIN_USER=${WAYPAL_DB_USER}
+      - INFLUXDB_INIT_PWD=${WAYPAL_DB_PWD}
+      - PRE_CREATE_DB=${ACADVISOR_DB}
+      - SERVICE_IGNORE=true
+ 
+  ### Monitor grafana user DB
+  postgresql:
+    ## Image
+    build: postgresql
+    ##image: sameersbn/postgresql:9.6-2
+
+    ## Base
+    privileged: false
+    restart: always
+    container_name: postgresql
+    #hostname:
+    #command: 
+
+    ## Network
+    #network_mode: host    
+    #expose:
+    #ports:    
+    #depends_on:
+    #link:
+
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+      - ${MONITOR_VOLUME}/postgresql/var/lib/postgresql:/var/lib/postgresql
+
+    ## Env
+    environment:
+      - DB_USER=waypal
+      - DB_PASS=waypal
+      - DB_NAME=waypal_grafana
+      - DB_EXTENSION=pg_trgm
+      - SERVICE_IGNORE=true
+
+  ### Monitor Client for docker
+  cadvisor:
+    ## Image
+    build: cadvisor
+    ##image: google/cadvisor:v0.27.1
+
+    ## Base
+    privileged: false
+    restart: always
+    container_name: cadvisor
+    hostname: ${ACADVISOR_HOSTNAME}
+    command: -storage_driver=influxdb -storage_driver_db=${ACADVISOR_DB} -storage_driver_host=${INFLUXBD_SERVER_IP}:${INFLUXDB_SERVER_PORT}  
+
+    ## Network
+    #network_mode: host  
+    #expose:
+    ports:
+      - "9090:8080"
+    #depends_on:
+    #link:
+
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+    ## Env
+    environment:
+      - SERVICE_IGNORE=true
+      
+  ### Monitor Client for host
+  telegraf:
+    ## Image
+    build: telegraf
+    ##image: hub.docker.waypal.cn/telegraf:1.0
+
+    ## Base
+    privileged: true
+    restart: always
+    container_name: telegraf
+    #hostname:
+    #command: 
+
+    ## Network
+    network_mode: host    
+    #expose:
+    #ports:    
+    #depends_on:
+    #link:
+
+    ## Storage
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro 
+      - ${MONITOR_VOLUME}/telegraf/etc/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+
+    ## Env
+    environment:
+      - SERVICE_IGNORE=true
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.103.0/24
+        #- gateway: 192.168.103.1

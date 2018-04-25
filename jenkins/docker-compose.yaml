@@ -1,0 +1,37 @@
+  version: '3'
+
+  services:
+    proxy:
+      restart: always
+      image: jwilder/nginx-proxy:latest
+      ports:
+        - "80:80"
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+        - /var/run/docker.sock:/tmp/docker.sock:ro
+
+    jenkins:
+      restart: always
+      image: bitnami/jenkins:latest
+      ports:
+        - "10080:8080"
+        - "8443:8443"
+        - "50000:50000"
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+        - /home/waypal/volume/jenkins_data:/bitnami
+      environment:
+        - JENKINS_USERNAME=waypal
+        - JENKINS_PASSWORD=WayPal168*
+   
+  networks:
+    default:
+      driver: bridge
+      driver_opts:
+        com.docker.network.enable_ipv6: "false"
+      ipam:
+        driver: default
+        config:
+          - subnet: 192.168.100.0/24

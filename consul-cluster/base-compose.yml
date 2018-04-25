@@ -1,0 +1,30 @@
+version: '3'
+
+services:
+  consul-server:
+    build: consul
+    image: hub.docker.waypal.cn/waypal-consul:1.0
+    restart: always
+    hostname: consul-server-${SERVICE_NAME}
+    # Default port 8500
+    command: -ui-dir /ui -advertise ${CONSUL_IP}
+    ports:
+      - ${EXPOSE_IP}:8300:8300
+      - ${EXPOSE_IP}:8301:8301
+      - ${EXPOSE_IP}:8302:8302
+      - ${EXPOSE_IP}:8301:8301/udp
+      - ${EXPOSE_IP}:8302:8302/udp
+      - ${EXPOSE_IP}:8400:8400
+      - ${EXPOSE_IP}:8500:8500
+      - ${EXPOSE_IP}:8600:53/udp
+    volumes:
+      - ${CONSUL_VOLUME}/data:/data
+    environment:
+      - SERVICE_IGNORE=true
+
+networks:
+  default:
+    external:
+      name: ${NETWORK}
+
+

@@ -1,0 +1,23 @@
+{
+	"datacenter": "waypal-hb",
+	"data_dir": "/data",
+	"ui_dir": "/ui",
+	"client_addr": "0.0.0.0",
+	"ports": {
+		"dns": 53
+	},
+	"recursor": "8.8.8.8",
+	"disable_update_check": true,
+	"leave_on_terminate": false,
+	"skip_leave_on_interrupt": true,
+	"server": false,
+	"rejoin_after_leave": true,
+	"retry_interval": "10s",
+	"retry_max": 3,
+	"retry_join": [ 
+		"172.17.101.171:8301",
+		"172.17.101.172:8301",
+		"172.25.90.54:8301"
+  	]
+
+}

@@ -1,0 +1,82 @@
+version: '3'
+
+services:
+  # ICE server, service port: 3478/udp and 3478/tcp
+  coturn:
+    build: coturn
+    image: hub.docker.waypal.cn/waypal-coturn:1.0
+    restart: always
+    hostname: waypal-coturn
+    network_mode: host
+    ports:
+      - ${EXPOSE_IP}:3478:3478
+    environment:
+      - SERVICE_NAME=waypal-coturn
+      - SERVICE_TAGS=${TAG_INFO}
+      - SERVICE_REGION=${REGION}
+     
+  # KMS Server
+  kms:
+    build: kms
+    image: hub.docker.waypal.cn/waypal-kms:1.0
+    restart: always
+    hostname: waypal-kms
+    depends_on:
+      - "coturn"
+      - "telegraf"
+      - "kmonitor"
+      - "registrator"
+    #network_mode: host
+    ports:
+      - ${EXPOSE_IP}:18888:8888
+    volumes:
+      - ${KMS_VOLUME}/kms-media:/tmp
+    environment:
+      - GST_DEBUG=Kurento*:4
+      - SERVICE_NAME=waypal-kms
+      - SERVICE_TAGS=${TAG_INFO}
+      - SERVICE_REGION=${REGION}
+
+  #telegraf
+  telegraf:
+    build: telegraf
+    image: hub.docker.waypal.cn/waypal-telegraf:1.0
+    restart: always
+    hostname: waypal-telegraf
+    network_mode: host
+    volumes:
+      - ${MONITOR_VOLUME}/telegraf/etc/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+
+  # Kms Monitor Client
+  kmonitor:
+    build: ./kmonitor
+    restart: always
+    network_mode: host
+    environment:
+      - KMS_URI=${KMS_URI}
+      - KMS_NAME=${KMS_NAME}
+      - GRAPHITE_IP=${GRAPHITE_SERVER_IP}
+      - GRAPHITE_PORT=${GRAPHITE_SERVER_PORT}
+
+  # Registrator (register container as services in Consul)
+  registrator:
+    build: registrator
+    image: hub.docker.waypal.cn/waypal-registrator:1.0
+    restart: always
+    hostname: waypal-registrator
+    command: -ip ${PRIVATE_IP} consul://${CONSUL_IP}:8500
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock
+    environment:
+      - SERVICE_IGNORE=true 
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.100.0/24

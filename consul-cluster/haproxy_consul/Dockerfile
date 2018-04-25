@@ -1,0 +1,17 @@
+FROM haproxy:alpine
+
+ENV CONSUL_TEMPLATE_VERSION=0.16.0
+
+# Update wget to get support for SSL
+RUN apk --update add haproxy wget keepalived
+
+# Download consul-template
+RUN ( wget --no-check-certificate https://releases.hashicorp.com/consul-template/${CONSUL_TEMPLATE_VERSION}/consul-template_${CONSUL_TEMPLATE_VERSION}_linux_amd64.zip -O /tmp/consul_template.zip && unzip /tmp/consul_template.zip && mv consul-template /usr/bin && rm -rf /tmp/* )
+
+COPY conf /haproxy
+COPY keepalived /keepalived
+
+RUN chmod +x /keepalived/*.sh
+
+ENTRYPOINT ["consul-template", "-config=/haproxy/haproxy.json"]
+CMD ["-consul=consul:8500"]

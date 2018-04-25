@@ -1,0 +1,7 @@
+1. install docker and docker-compose
+2. config "env.sh"
+   modify server config
+3. run "source env.sh"
+4. run "envsubst <"base-compose.yml"> docker-compose.yml"
+5. On server host, run "docker-compose up -d", start all service
+6. On client host, run "docker-compose up waypal-cadvisor -d", start cadvisor service

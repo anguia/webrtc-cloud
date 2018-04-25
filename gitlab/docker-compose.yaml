@@ -1,0 +1,77 @@
+  version: '3'
+
+  services:
+    proxy:
+      restart: always
+      image: jwilder/nginx-proxy:latest
+      ports:
+        - "80:80"
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+        - /var/run/docker.sock:/tmp/docker.sock:ro
+
+    gitlab:
+      restart: always
+      image: sameersbn/gitlab:latest
+      depends_on:
+        - proxy
+        - redis
+        - postgresql
+      ports:
+#        - "10080:80"
+        - "10022:22"
+      env_file:
+        - .env_gitlab
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+        - /home/waypal/volume/gitlab/gitlab:/home/git/data:Z
+
+    redis:
+      restart: always
+      image: sameersbn/redis:latest
+      command:
+        - --loglevel warning
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+        - /home/waypal/volume/gitlab/redis:/var/lib/redis:Z
+
+    postgresql:
+      restart: always
+      image: sameersbn/postgresql:9.6-2
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+        - /home/waypal/volume/gitlab/postgresql:/var/lib/postgresql:Z
+      environment:
+        - DB_USER=gitlab
+        - DB_PASS=password
+        - DB_NAME=gitlabhq_production
+        - DB_EXTENSION=pg_trgm
+
+    jenkins:
+      restart: always
+      image: bitnami/jenkins:latest
+      ports:
+        - "10080:8080"
+        - "8443:8443"
+        - "50000:50000"
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+        - /etc/timezone:/etc/timezone:ro
+        - /home/waypal/volume/jenkins_data:/bitnami
+      environment:
+        - JENKINS_USERNAME=waypal
+        - JENKINS_PASSWORD=WayPal168*
+   
+  networks:
+    default:
+      driver: bridge
+      driver_opts:
+        com.docker.network.enable_ipv6: "false"
+      ipam:
+        driver: default
+        config:
+          - subnet: 192.168.100.0/24

@@ -1,0 +1,45 @@
+  1. add user:
+    adduser waypal
+    passwd waypal
+
+  2. change hosts:
+    conf /etc/hosts and /etc/hostname
+    run hostname
+
+  3. add waypal sudo:
+    conf /etc/sudoers
+
+  4. install docker for ubuntu debian centos:
+    curl -sSL https://get.daocloud.io/docker | sh
+    conf systemctl start docker.service
+    #reboot restart service
+    conf systemctl enable docker.service
+
+  5. install docker-compose:
+    sudo curl -L \
+      https://github.com/docker/compose/releases/download/1.16.1/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+
+  6. change docker cli permission:
+    gpasswd -a waypal docker
+
+  7. config docker volume:
+    mkdir -p /home/waypal/volume
+    chown waypal:waypal /home/waypal/volume
+
+  8. mount data disk for volume
+    # find new disk
+    fdisk -l
+    # format disk
+    mkfs.ext4 /dev/v**
+    # mount disk
+    mount /dev/v** /home/waypal/volume
+    # config start and auto mount
+    modify /etc/fstab
+    "/dev/vdb   /home/waypal/volume     ext4  defaults  0 0"
+  9. install kms server
+    # config env.sh
+    # cp kms conf to host volume
+    cp ./conf/*.ini & *.json ${kms-host-volume}//etc/kurento/modules/kurento/
+    # run kms docker
+    docker-compose up waypal-kms

@@ -1,0 +1,51 @@
+defaults
+	mode http
+	log global
+	option httplog
+	option  http-server-close
+	option  dontlognull
+	option  redispatch
+	option  contstats
+	retries 3
+	backlog 10000
+	timeout client          25s
+	timeout connect          5s
+	timeout server          25s
+	# timeout tunnel available in ALOHA 5.5 or HAProxy 1.5-dev10 and higher
+	timeout tunnel        3600s
+	timeout http-keep-alive  1s
+	timeout http-request    15s
+	timeout queue           30s
+	timeout tarpit          60s
+	default-server inter 3s rise 2 fall 3
+	option forwardfor
+
+frontend ft_web
+	bind *:80
+	maxconn 60000
+
+	## routing based on Host header
+	acl host_ws hdr_beg(Host) -i ws.
+	use_backend bk_kms if host_ws
+
+	## routing based on websocket protocol header
+	acl hdr_connection_upgrade hdr(Connection)  -i upgrade
+	acl hdr_upgrade_websocket  hdr(Upgrade)     -i websocket
+	use_backend bk_kms if hdr_connection_upgrade hdr_upgrade_websocket
+	default_backend bk_web
+
+backend bk_web                                                   
+	balance roundrobin                                             
+	{{range service "web"}}
+	server {{.Name}}.{{.Port}} {{.Address}}:{{.Port}} check{{end}}
+
+backend bk_kms                                                    
+	##balance roundrobin
+	balance url_param userid
+	{{range service "kms-dev"}}
+	server {{.Name}}.{{.Port}} {{.Address}}:{{.Port}}/kurento weight 1 maxconn 10 check{{end}}
+
+listen stats
+	bind *:1080
+	stats refresh 30s
+	stats uri /stats

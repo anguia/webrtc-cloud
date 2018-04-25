@@ -1,0 +1,73 @@
+version: '3'
+
+services:
+  proxy:
+    restart: always
+    image: jwilder/nginx-proxy:latest
+    ports:
+      - "80:80"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - /home/waypal/volume/proxy/etc/nginx/conf.d:/etc/nginx/conf.d
+
+  confluence:
+    restart: always
+    image: atlassian/confluence-server:latest
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /home/waypal/volume/confluence:/var/atlassian/application-data/confluence:Z
+    depends_on:
+      - proxy
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+    environment:
+      - VIRTUAL_HOST=wiki.tool.waypal.cn
+      - VIRTUAL_PORT=8090      
+
+  registry:
+    restart: always
+    image: registry:2
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /home/waypal/volume/registry/var/lib/registry:/var/lib/registry
+    depends_on:
+      - proxy
+    ports:
+      - "5000:5000"
+    environment:
+      - VIRTUAL_HOST=hub.docker.waypal.cn
+      - VIRTUAL_PORT=5000
+
+  registry-ui:
+    restart: always
+    image: konradkleine/docker-registry-frontend:v2
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    depends_on:
+      - proxy
+      - registry
+    links:
+      - registry:registry
+    ports:
+      - "10080:80"
+    environment:
+      - ENV_DOCKER_REGISTRY_HOST=registry
+      - ENV_DOCKER_REGISTRY_PORT=5000
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.enable_ipv6: "false"
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.100.0/24
+        #  gateway: 192.168.100.1
+
+

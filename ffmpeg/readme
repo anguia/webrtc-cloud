@@ -1,0 +1,37 @@
+# for docker run
+ docker run -d --name=transcoder 
+		-v mediaFolder:/records
+		-v logFolder:/var/log/transcoder
+		-v transcoderdbFolder:/transcoderdbFolder
+		-v /etc/localtime:/etc/localtime:ro
+    -v /etc/timezone:/etc/timezone:ro
+		hub.docker.waypal.cn/waypal-transcoder:1.0
+
+# for docker-compose run
+	git clone ssh://git@gitlab.tool.waypal.cn:10022/changeya/waypal-cloud.git
+	create docker-compose.yml
+	version: '3'
+
+	services:
+		transcoder:
+			build: ffmpeg
+			image: hub.docker.waypal.cn/waypal-transcoder:1.0
+			restart: always
+			hostname: waypal-transcoder
+			volumes:
+				- /etc/localtime:/etc/localtime:ro
+				- /etc/timezone:/etc/timezone:ro
+				- /var/run/docker.sock:/var/run/docker.sock
+				- /home/waypal/nas-volume/kms-records:/records
+				- /home/waypal/volume/kms-cluster/transcoder/transcoderdb:/transcoderdb
+				- /home/waypal/volume/kms-cluster/transcoder/var/log/transcoder:/var/log/transcoder
+
+	networks:
+		default:
+			driver: bridge
+			driver_opts:
+				com.docker.network.enable_ipv6: "false"
+			ipam:
+				driver: default
+				config:
+					- subnet: 192.168.100.0/24
